@@ -1,0 +1,46 @@
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+.tab-btn.tab-active {
+  border-bottom: 2px solid #14b8a6;
+  color: #14b8a6;
+  font-weight: 600;
+}
+
+.kpi-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kpi-card:hover {
+  transform: translateY(-1px);
+}
+
+#drop-zone {
+  transition: all 0.2s ease-in-out;
+}
+#drop-zone.drag-over {
+  border-color: #14b8a6;
+  background-color: rgba(20, 184, 166, 0.08);
+}
+
+.font-numeric {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}

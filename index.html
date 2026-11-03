@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cost Report Analytics & Visualization Dashboard | SA859CMS</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="css/styles.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans transition-colors duration-200">
+
+  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-50 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-cyan-400 flex items-center justify-center text-slate-950 shadow-lg shadow-teal-500/20">
+          <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white">SA859CMS Cost & Commercial Analytics</h1>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">Week 13</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+            <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+            50MW Humain Campus Data Center CS &bull; Client: Alistidafa Aldhakiah &bull; WE 30-Oct-2026
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3 text-sm">
+        <div class="flex items-center bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-0.5 text-xs font-medium">
+          <button id="btn-curr-sar" onclick="App.setCurrency('SAR')" class="px-2.5 py-1 rounded bg-teal-500 text-slate-950 font-bold transition">SAR</button>
+          <button id="btn-curr-usd" onclick="App.setCurrency('USD')" class="px-2.5 py-1 rounded text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">USD</button>
+        </div>
+
+        <a href="data/transactions.csv" download class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium transition shadow-sm">
+          <i data-lucide="download" class="w-3.5 h-3.5 text-teal-500 dark:text-teal-400"></i>
+          Export CSV
+        </a>
+
+        <a id="btn-download-cleaned" href="SA859CMS_Cost_Report_Cleaned.xlsx" download class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white dark:text-slate-950 text-xs font-bold transition shadow-sm">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          Download
+        </a>
+
+        <button id="theme-toggle" onclick="App.toggleTheme()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-xs font-medium transition shadow-sm" title="Toggle Light / Dark Theme">
+          <i id="theme-icon" data-lucide="sun" class="w-3.5 h-3.5 text-amber-500"></i>
+          <span id="theme-text">Light</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <div id="drop-zone" class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-500 dark:hover:border-teal-500/80 bg-white/70 dark:bg-slate-900/50 rounded-xl p-4 text-center cursor-pointer transition group shadow-sm">
+      <input type="file" id="file-input" accept=".xlsx" class="hidden">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-105 transition">
+          <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+        </div>
+        <div class="text-left">
+          <p class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+            Got an updated weekly file? <span class="text-teal-600 dark:text-teal-400 underline">Click to upload</span> or drag & drop any new <code class="font-mono text-teal-700 dark:text-teal-300">.xlsx</code> here
+          </p>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">
+            Processes 100% locally in your browser. Zero installation required. Instantly cleans and updates all metrics.
+          </p>
+        </div>
+        <div id="upload-status" class="hidden sm:ml-auto text-xs font-medium text-teal-600 dark:text-teal-400 flex items-center gap-2">
+          <div class="w-3.5 h-3.5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <span id="upload-status-text">Processing...</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div class="kpi-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+          <span>PJTD Revenue</span>
+          <i data-lucide="wallet" class="w-4 h-4 text-emerald-500 dark:text-emerald-400"></i>
+        </div>
+        <div class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-numeric" id="kpi-pjtd-rev">--</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+          <span>Budget: <span id="kpi-base-rev">--</span></span>
+          <span class="text-emerald-600 dark:text-emerald-400 font-semibold">4.7%</span>
+        </div>
+      </div>
+
+      <div class="kpi-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+          <span>PJTD Cost</span>
+          <i data-lucide="receipt" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
+        </div>
+        <div class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-numeric" id="kpi-pjtd-cost">--</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+          <span>Budget: <span id="kpi-base-cost">--</span></span>
+          <span class="text-blue-600 dark:text-blue-400 font-semibold">4.9%</span>
+        </div>
+      </div>
+
+      <div class="kpi-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+          <span>PJTD Margin %</span>
+          <i data-lucide="trending-up" class="w-4 h-4 text-amber-500 dark:text-amber-400"></i>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-xl font-bold text-amber-600 dark:text-amber-400 tracking-tight font-numeric" id="kpi-pjtd-gm-pct">28.18%</span>
+          <span class="text-xs text-slate-400 line-through font-numeric" id="kpi-base-gm-pct">30.88%</span>
+        </div>
+        <div class="text-[11px] text-amber-600 dark:text-amber-400/90 mt-1 flex items-center gap-1 font-medium">
+          <i data-lucide="alert-triangle" class="w-3 h-3"></i>
+          <span>-2.7% margin erosion</span>
+        </div>
+      </div>
+
+      <div class="kpi-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+          <span>Hours Spent</span>
+          <i data-lucide="clock" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i>
+        </div>
+        <div class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-numeric" id="kpi-pjtd-hours">3,128 hrs</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+          <span>Budget: 70,793</span>
+          <span class="text-cyan-600 dark:text-cyan-400 font-semibold">4.4%</span>
+        </div>
+      </div>
+
+      <div class="kpi-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+          <span>Weekly Burn</span>
+          <i data-lucide="flame" class="w-4 h-4 text-orange-500 dark:text-orange-400"></i>
+        </div>
+        <div class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-numeric" id="kpi-weekly-burn-cost">--</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+          <span>240.6 hrs/wk</span>
+          <span class="text-emerald-600 dark:text-emerald-400 font-medium">11 On-Site</span>
+        </div>
+      </div>
+
+      <div class="kpi-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+          <span>Unbilled WIP</span>
+          <i data-lucide="landmark" class="w-4 h-4 text-purple-500 dark:text-purple-400"></i>
+        </div>
+        <div class="text-xl font-bold text-purple-700 dark:text-purple-300 tracking-tight font-numeric" id="kpi-wip">--</div>
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+          <span>WWOA: 73.8%</span>
+          <span class="text-purple-600 dark:text-purple-400 font-medium">AR: 0</span>
+        </div>
+      </div>
+    </section>
+
+    <nav class="flex border-b border-slate-200 dark:border-slate-800 text-sm font-medium space-x-6 overflow-x-auto">
+      <button onclick="App.switchTab('tab-overview')" id="btn-tab-overview" class="tab-btn pb-3 tab-active flex items-center gap-2">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+        Executive Overview
+      </button>
+      <button onclick="App.switchTab('tab-staff')" id="btn-tab-staff" class="tab-btn pb-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center gap-2 transition">
+        <i data-lucide="users" class="w-4 h-4"></i>
+        Staff & Margin Performance
+        <span class="bg-red-500/10 text-red-600 dark:text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-red-500/20" id="badge-neg-margin">6 At Risk</span>
+      </button>
+      <button onclick="App.switchTab('tab-tasks')" id="btn-tab-tasks" class="tab-btn pb-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center gap-2 transition">
+        <i data-lucide="check-square" class="w-4 h-4"></i>
+        WBS & Task Code Breakdown
+      </button>
+      <button onclick="App.switchTab('tab-finance')" id="btn-tab-finance" class="tab-btn pb-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center gap-2 transition">
+        <i data-lucide="file-check-2" class="w-4 h-4"></i>
+        Contract & WIP Recon
+      </button>
+      <button onclick="App.switchTab('tab-transactions')" id="btn-tab-transactions" class="tab-btn pb-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center gap-2 transition">
+        <i data-lucide="table" class="w-4 h-4"></i>
+        Oracle Transactions Explorer
+        <span class="bg-teal-500/10 text-teal-600 dark:text-teal-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-teal-500/20">4,095 Rows</span>
+      </button>
+    </nav>
+
+    <div id="tab-overview" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="trending-down" class="w-4 h-4 text-teal-500 dark:text-teal-400"></i>
+                Gross Margin Trend (Weekly Actual vs Budget 30.88%)
+              </h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Erosion from 33.28% peak down to 27.22% on WE 30-Oct-2026</p>
+            </div>
+            <div class="text-xs flex items-center gap-3">
+              <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400"><span class="w-3 h-0.5 bg-slate-400 dark:bg-slate-500 inline-block"></span> Budget 30.88%</span>
+              <span class="flex items-center gap-1.5 text-teal-600 dark:text-teal-400"><span class="w-3 h-1 bg-teal-500 dark:bg-teal-400 rounded-full inline-block"></span> Actual GM %</span>
+            </div>
+          </div>
+          <div class="h-64">
+            <canvas id="chart-gm-trend"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i>
+              Staff Regional Distribution
+            </h2>
+          </div>
+          <div class="h-52">
+            <canvas id="chart-regional"></canvas>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs grid grid-cols-3 text-center">
+            <div>
+              <span class="text-slate-500 dark:text-slate-400 block">Saudi Arabia</span>
+              <span class="font-bold text-slate-900 dark:text-white">2,805 hrs</span>
+            </div>
+            <div>
+              <span class="text-slate-500 dark:text-slate-400 block">UAE (AE)</span>
+              <span class="font-bold text-slate-900 dark:text-white">127 hrs</span>
+            </div>
+            <div>
+              <span class="text-slate-500 dark:text-slate-400 block">UK (UF)</span>
+              <span class="font-bold text-slate-900 dark:text-white">47 hrs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
+            <i data-lucide="layers" class="w-4 h-4 text-emerald-500 dark:text-emerald-400"></i>
+            PJTD Cost vs Revenue by Scope Category
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">On-Site Supervision represents 89.6% of project spend</p>
+          <div class="h-64">
+            <canvas id="chart-scope"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
+            <i data-lucide="calendar" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
+            Weekly Spend Velocity & Hours Logged
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Historical weekly billing transactions</p>
+          <div class="h-64">
+            <canvas id="chart-weekly"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
+          <i data-lucide="list-checks" class="w-4 h-4 text-teal-500 dark:text-teal-400"></i>
+          Detailed Scope Budget vs PJTD Actuals
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50">
+                <th class="py-2.5 px-3 font-semibold">Scope Item</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Baseline Rev</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Baseline Cost</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Base GM%</th>
+                <th class="py-2.5 px-3 font-semibold text-right text-teal-600 dark:text-teal-400">PJTD Rev</th>
+                <th class="py-2.5 px-3 font-semibold text-right text-blue-600 dark:text-blue-400">PJTD Cost</th>
+                <th class="py-2.5 px-3 font-semibold text-right">PJTD GM</th>
+                <th class="py-2.5 px-3 font-semibold text-right">PJTD GM%</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-scope-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-staff" class="hidden space-y-6">
+      <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl p-4 flex items-start gap-3.5">
+        <div class="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg shrink-0">
+          <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-amber-900 dark:text-amber-200">Critical Commercial Alert: Staff Margin Erosion</h3>
+          <p class="text-xs text-amber-800/90 dark:text-amber-300/80 mt-1 leading-relaxed">
+            Several staff and subcontractor resources are generating <strong>negative gross margin</strong> (cost exceeds accrued revenue), pulling overall project margin below the 30.88% baseline target. In particular, Job Shopper personnel (e.g. Radha Rayudu -21.7% GM, Amjad Saeed -21.3% GM) and Jacobs UK subcontracts (-28.9% GM) have hourly burdened costs that exceed the billable rate.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
+            <i data-lucide="award" class="w-4 h-4 text-teal-500 dark:text-teal-400"></i>
+            Top 10 Personnel by Burdened Cost & Revenue
+          </h2>
+          <div class="h-64">
+            <canvas id="chart-top-staff"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
+              <i data-lucide="filter" class="w-4 h-4 text-cyan-500 dark:text-cyan-400"></i>
+              Resource Filters
+            </h2>
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs text-slate-500 dark:text-slate-400 block mb-1">Search Staff Name / ID</label>
+                <input type="text" id="filter-staff-search" oninput="App.renderStaffTable()" placeholder="e.g. Nelson, Rayudu, Jacobs..." class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 transition">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 dark:text-slate-400 block mb-1">Margin Status</label>
+                <select id="filter-staff-margin" onchange="App.renderStaffTable()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500">
+                  <option value="all">All Personnel</option>
+                  <option value="negative">Negative Margin Only (&lt; 0%)</option>
+                  <option value="positive">Healthy Margin (&gt;= 0%)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+            <div class="flex justify-between">
+              <span>Total Deployed Resources:</span>
+              <span class="font-bold text-slate-900 dark:text-white" id="stat-total-staff">--</span>
+            </div>
+            <div class="flex justify-between text-red-600 dark:text-red-400">
+              <span>Negative Margin Resources:</span>
+              <span class="font-bold" id="stat-neg-staff">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-3">Personnel Performance & Profitability Ledger</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50">
+                <th class="py-2.5 px-3 font-semibold">Employee / Supplier</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Hours</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Burdened Cost</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Accrued Rev</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Gross Margin</th>
+                <th class="py-2.5 px-3 font-semibold text-right">GM %</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Cost/Hr</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Rev/Hr</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-staff-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-tasks" class="hidden space-y-6">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="check-square" class="w-4 h-4 text-teal-500 dark:text-teal-400"></i>
+              WBS Tasks & Position Codes
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Task code rate realization and spend breakdown</p>
+          </div>
+          <div>
+            <input type="text" id="filter-task-search" oninput="App.renderTaskTable()" placeholder="Search task code / description..." class="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 w-64">
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/50">
+                <th class="py-2.5 px-3 font-semibold">WBS Task Code</th>
+                <th class="py-2.5 px-3 font-semibold">Position / Task Description</th>
+                <th class="py-2.5 px-3 font-semibold">Category</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Hours</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Burdened Cost</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Revenue</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Margin</th>
+                <th class="py-2.5 px-3 font-semibold text-right">GM %</th>
+                <th class="py-2.5 px-3 font-semibold text-center">Staff Count</th>
+              </tr>
+            </thead>
+            <tbody id="table-task-body" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-finance" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <i data-lucide="file-text" class="w-4 h-4 text-teal-500 dark:text-teal-400"></i>
+            Contractual Parameters & Terms
+          </h2>
+          <dl class="space-y-2.5 text-xs">
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Project Name</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">50MW Humain Campus Data Center CS</dd>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Client</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">Alistidafa Aldhakiah Company</dd>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Project Location</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">Riyadh, Saudi Arabia</dd>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Contract Type</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">Time and Material (T&M)</dd>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Project Duration</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">16 Months</dd>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Payment Terms</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">45 days from receipt of invoice</dd>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+              <dt class="text-slate-500 dark:text-slate-400">Currency & FX Rate</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">SAR (1 SAR = 0.2666 USD)</dd>
+            </div>
+            <div class="flex justify-between py-1">
+              <dt class="text-slate-500 dark:text-slate-400">Labor Contingency</dt>
+              <dd class="font-semibold text-slate-900 dark:text-white">1.35% of labor cost as Non-Billable</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <i data-lucide="scale" class="w-4 h-4 text-purple-500 dark:text-purple-400"></i>
+            WIP & Cash Flow Reconciliation
+          </h2>
+          <div class="space-y-3">
+            <div class="p-3 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/30 rounded-lg flex items-center justify-between">
+              <div>
+                <span class="text-xs text-purple-900 dark:text-purple-300 block font-medium">Unbilled Revenue (WIP)</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">Revenue earned but not yet invoiced</span>
+              </div>
+              <span class="text-lg font-bold text-purple-900 dark:text-purple-200 font-numeric" id="recon-wip">SAR 697,713</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-between">
+              <div>
+                <span class="text-xs text-slate-700 dark:text-slate-300 block font-medium">Billed Revenue & Invoiced</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">Invoices issued to client</span>
+              </div>
+              <span class="text-sm font-bold text-slate-900 dark:text-white font-numeric">SAR 0.00</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-between">
+              <div>
+                <span class="text-xs text-slate-700 dark:text-slate-300 block font-medium">Cash Collected</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">Payments received</span>
+              </div>
+              <span class="text-sm font-bold text-slate-900 dark:text-white font-numeric">SAR 0.00</span>
+            </div>
+
+            <div class="p-3 bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/30 rounded-lg">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-semibold text-teal-800 dark:text-teal-300">WWOA Facility Utilization</span>
+                <span class="text-xs font-bold text-teal-800 dark:text-teal-300 font-numeric">73.8%</span>
+              </div>
+              <div class="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div class="bg-teal-500 h-full rounded-full" style="width: 73.8%"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-numeric">
+                <span>Spent: SAR 692,231</span>
+                <span>Approved Limit: SAR 937,500</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-3">
+          <i data-lucide="shield" class="w-4 h-4 text-blue-500 dark:text-blue-400"></i>
+          Contingency Reserve Allocation (Baseline Budget: SAR 192,371 / $51,286)
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-xs text-slate-500 dark:text-slate-400 block">PM Contingency (30%)</span>
+            <span class="text-lg font-bold text-slate-900 dark:text-white mt-1 block font-numeric">SAR 57,711.16</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">$15,385.80 USD &bull; Task: S.PN.S.S.S</span>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-xs text-slate-500 dark:text-slate-400 block">Controlled Contingency 1 (50%)</span>
+            <span class="text-lg font-bold text-slate-900 dark:text-white mt-1 block font-numeric">SAR 96,185.27</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">$25,642.99 USD &bull; Task: S.PN.S.S.CC1</span>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span class="text-xs text-slate-500 dark:text-slate-400 block">Controlled Contingency 2 (20%)</span>
+            <span class="text-lg font-bold text-slate-900 dark:text-white mt-1 block font-numeric">SAR 38,474.11</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">$10,257.20 USD &bull; Task: S.PN.S.S.CC2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-transactions" class="hidden space-y-4">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="database" class="w-4 h-4 text-teal-500 dark:text-teal-400"></i>
+              Oracle ERP Raw Transactions Ledger
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Explore, search, filter and export all 4,095 transaction records</p>
+          </div>
+
+          <button onclick="TableExplorer.exportFilteredCSV()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white dark:text-slate-950 text-xs font-bold transition shadow-sm">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            Export Filtered CSV
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 py-4">
+          <div>
+            <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Global Keyword Search</label>
+            <input type="text" id="tx-search" oninput="TableExplorer.filter()" placeholder="Search staff, task, exp type..." class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500 transition">
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Project Filter</label>
+            <select id="tx-project" onchange="TableExplorer.filter()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500">
+              <option value="all">All Projects</option>
+              <option value="SA859CMS">SA859CMS</option>
+              <option value="SA859JUK">SA859JUK</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Expenditure Type</label>
+            <select id="tx-exp-type" onchange="TableExplorer.filter()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500">
+              <option value="all">All Expenditure Types</option>
+              <option value="Pro-Service ST">Pro-Service ST</option>
+              <option value="Job Shopper P/S ST">Job Shopper P/S ST</option>
+              <option value="Subcontract Cost">Subcontract Cost</option>
+              <option value="Pro-Service SPOT">Pro-Service SPOT</option>
+              <option value="Job Shopper P/S SPOT">Job Shopper P/S SPOT</option>
+              <option value="Vehicle-Fuel">Vehicle-Fuel</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">Billable Status</label>
+            <select id="tx-billable" onchange="TableExplorer.filter()" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-500">
+              <option value="all">All</option>
+              <option value="Y">Billable (Y)</option>
+              <option value="N">Non-Billable (N)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-4 py-2.5 px-4 bg-slate-50 dark:bg-slate-950 rounded-lg text-xs border border-slate-200 dark:border-slate-800/80">
+          <div class="flex items-center gap-4 text-slate-600 dark:text-slate-400">
+            <span>Matching Records: <strong class="text-slate-900 dark:text-white font-numeric" id="tx-stat-count">0</strong></span>
+            <span>Total Hours: <strong class="text-cyan-600 dark:text-cyan-400 font-numeric" id="tx-stat-hours">0</strong></span>
+            <span>Total Burdened Cost: <strong class="text-blue-600 dark:text-blue-400 font-numeric" id="tx-stat-cost">SAR 0</strong></span>
+            <span>Total Revenue: <strong class="text-teal-600 dark:text-teal-400 font-numeric" id="tx-stat-rev">SAR 0</strong></span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-slate-500 dark:text-slate-400">Rows per page:</span>
+            <select id="tx-page-size" onchange="TableExplorer.setPageSize(this.value)" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded px-2 py-0.5 text-xs text-slate-900 dark:text-white">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto mt-4">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/60">
+                <th class="py-2 px-2.5">ID</th>
+                <th class="py-2 px-2.5">Date</th>
+                <th class="py-2 px-2.5">Project</th>
+                <th class="py-2 px-2.5">Task Code</th>
+                <th class="py-2 px-2.5">Employee / Supplier</th>
+                <th class="py-2 px-2.5">Expenditure Type</th>
+                <th class="py-2 px-2.5 text-right">Qty (Hrs)</th>
+                <th class="py-2 px-2.5 text-right">Burdened Cost</th>
+                <th class="py-2 px-2.5 text-right">Revenue</th>
+                <th class="py-2 px-2.5 text-right">Margin</th>
+                <th class="py-2 px-2.5 text-center">Billable</th>
+              </tr>
+            </thead>
+            <tbody id="table-tx-body" class="divide-y divide-slate-100 dark:divide-slate-800/50">
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
+          <span class="text-slate-500 dark:text-slate-400 font-numeric" id="tx-page-info">Showing 1 to 50 of 4,095</span>
+          <div class="flex items-center gap-2">
+            <button id="btn-tx-prev" onclick="TableExplorer.changePage(-1)" class="px-3 py-1.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition">Previous</button>
+            <button id="btn-tx-next" onclick="TableExplorer.changePage(1)" class="px-3 py-1.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/data.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/table-explorer.js"></script>
+  <script src="js/excel-parser.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
