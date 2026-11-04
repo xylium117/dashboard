@@ -1,6 +1,19 @@
 param(
-    [string]$InputFile = "SA859CMS_Cost Report_WE_30 Oct 2026.xlsx"
+    [string]$InputFile = ""
 )
+
+if ([string]::IsNullOrWhiteSpace($InputFile)) {
+    $candidate = Get-ChildItem -File "*Combined*Cost Report*.xlsx" | Where-Object { $_.Name -notlike "*_Cleaned*" } | Select-Object -First 1
+    if (-not $candidate) {
+        $candidate = Get-ChildItem -File "*Combined*.xlsx" | Where-Object { $_.Name -notlike "*_Cleaned*" } | Select-Object -First 1
+    }
+    if (-not $candidate) {
+        $candidate = Get-ChildItem -File "*Cost Report*.xlsx" | Where-Object { $_.Name -notlike "*_Cleaned*" } | Select-Object -First 1
+    }
+    if ($candidate) {
+        $InputFile = $candidate.FullName
+    }
+}
 
 if (-not (Test-Path $InputFile)) {
     Write-Host "File not found: $InputFile" -ForegroundColor Red

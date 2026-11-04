@@ -4,6 +4,18 @@ cd /d "%~dp0"
 
 set "INPUT_FILE=%~1"
 if "%INPUT_FILE%"=="" (
+    for %%f in ("*Combined*Cost Report*.xlsx") do (
+        if not "%%~nf"=="*_Cleaned" (
+            set "INPUT_FILE=%%f"
+            goto found
+        )
+    )
+    for %%f in ("*Combined*.xlsx") do (
+        if not "%%~nf"=="*_Cleaned" (
+            set "INPUT_FILE=%%f"
+            goto found
+        )
+    )
     for %%f in ("*Cost Report*.xlsx") do (
         if not "%%~nf"=="*_Cleaned" (
             set "INPUT_FILE=%%f"
