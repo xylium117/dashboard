@@ -51,6 +51,11 @@ window.ExcelParser = (function() {
     return `${t.project}|${t.task}|${t.employee}|${t.item_date}|${t.qty}|${t.trans_cost}|${t.burdened_cost}`;
   }
 
+  function getZipEntry(zip, path) {
+    if (!zip || !path) return null;
+    return zip.file(path) || zip.file(path.replace(/\//g, '\\')) || (zip.file(new RegExp('^' + path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\//g, '[\\\\/]') + '$', 'i')) || [])[0];
+  }
+
   async function processFile(file) {
     if (!file.name.endsWith('.xlsx')) {
       alert('Please select an Excel (.xlsx) file.');
@@ -69,10 +74,11 @@ window.ExcelParser = (function() {
 
       const zip = await JSZip.loadAsync(file);
 
-      if (zip.file('xl/workbook.xml')) {
-        let wbXml = await zip.file('xl/workbook.xml').async('text');
+      const wbEntry = getZipEntry(zip, 'xl/workbook.xml');
+      if (wbEntry) {
+        let wbXml = await wbEntry.async('text');
         wbXml = wbXml.replace(/<definedNames>[\s\S]*?<\/definedNames>/g, '<definedNames/>');
-        zip.file('xl/workbook.xml', wbXml);
+        zip.file(wbEntry.name, wbXml);
 
         const cleanedBlob = await zip.generateAsync({ type: 'blob' });
         window.latestCleanedBlob = cleanedBlob;
@@ -98,8 +104,9 @@ window.ExcelParser = (function() {
       const parser = new DOMParser();
 
       let strings = [];
-      if (zip.file('xl/sharedStrings.xml')) {
-        const sXml = await zip.file('xl/sharedStrings.xml').async('text');
+      const ssEntry = getZipEntry(zip, 'xl/sharedStrings.xml');
+      if (ssEntry) {
+        const sXml = await ssEntry.async('text');
         const sDoc = parser.parseFromString(sXml, 'application/xml');
         const sis = sDoc.getElementsByTagName('si');
         for (let i = 0; i < sis.length; i++) {
@@ -108,8 +115,9 @@ window.ExcelParser = (function() {
       }
 
       const wbRels = {};
-      if (zip.file('xl/_rels/workbook.xml.rels')) {
-        const rXml = await zip.file('xl/_rels/workbook.xml.rels').async('text');
+      const relsEntry = getZipEntry(zip, 'xl/_rels/workbook.xml.rels');
+      if (relsEntry) {
+        const rXml = await relsEntry.async('text');
         const rDoc = parser.parseFromString(rXml, 'application/xml');
         const rels = rDoc.getElementsByTagName('Relationship');
         for (let i = 0; i < rels.length; i++) {
@@ -118,8 +126,8 @@ window.ExcelParser = (function() {
       }
 
       const sheetMap = {};
-      if (zip.file('xl/workbook.xml')) {
-        const wbXml = await zip.file('xl/workbook.xml').async('text');
+      if (wbEntry) {
+        const wbXml = await wbEntry.async('text');
         const wbDoc = parser.parseFromString(wbXml, 'application/xml');
         const sheets = wbDoc.getElementsByTagName('sheet');
         for (let i = 0; i < sheets.length; i++) {
@@ -160,14 +168,14 @@ window.ExcelParser = (function() {
       let txSheetPath = null;
       let isCombinedMaster = false;
 
-      if (sheetMap['Oracle_Combined'] && zip.file(sheetMap['Oracle_Combined'])) {
+      if (sheetMap['Oracle_Combined'] && getZipEntry(zip, sheetMap['Oracle_Combined'])) {
         txSheetPath = sheetMap['Oracle_Combined'];
         isCombinedMaster = true;
-      } else if (sheetMap['SA859CMS'] && zip.file(sheetMap['SA859CMS'])) {
+      } else if (sheetMap['SA859CMS'] && getZipEntry(zip, sheetMap['SA859CMS'])) {
         txSheetPath = sheetMap['SA859CMS'];
-      } else if (sheetMap['SA859JUK'] && zip.file(sheetMap['SA859JUK'])) {
+      } else if (sheetMap['SA859JUK'] && getZipEntry(zip, sheetMap['SA859JUK'])) {
         txSheetPath = sheetMap['SA859JUK'];
-      } else if (zip.file('xl/worksheets/sheet1.xml')) {
+      } else if (getZipEntry(zip, 'xl/worksheets/sheet1.xml')) {
         txSheetPath = 'xl/worksheets/sheet1.xml';
       }
 
@@ -180,9 +188,10 @@ window.ExcelParser = (function() {
       let addedCount = 0;
       let duplicateCount = 0;
 
-      if (txSheetPath && zip.file(txSheetPath)) {
+      const txEntry = getZipEntry(zip, txSheetPath);
+      if (txSheetPath && txEntry) {
         if (uploadStatusText) uploadStatusText.textContent = 'Deduplicating & importing transactions...';
-        const txXml = await zip.file(txSheetPath).async('text');
+        const txXml = await txEntry.async('text');
         const txRows = parseSheetRows(txXml);
 
         const rKeys = Object.keys(txRows).map(Number).sort((a, b) => a - b);
@@ -250,8 +259,9 @@ window.ExcelParser = (function() {
         }
       }
 
-      if (isCombinedMaster && sheetMap['Summary'] && zip.file(sheetMap['Summary'])) {
-        const sumXml = await zip.file(sheetMap['Summary']).async('text');
+      const sumEntry = sheetMap['Summary'] ? getZipEntry(zip, sheetMap['Summary']) : null;
+      if (isCombinedMaster && sumEntry) {
+        const sumXml = await sumEntry.async('text');
         const sumRows = parseSheetRows(sumXml);
 
         if (sumRows[9]) {

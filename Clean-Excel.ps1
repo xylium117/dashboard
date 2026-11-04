@@ -42,6 +42,11 @@ if (Test-Path $OutputFile) {
     Remove-Item $OutputFile -Force
 }
 
-[System.IO.Compression.ZipFile]::CreateFromDirectory($tempDir, (Join-Path (Get-Location) $OutputFile))
+$outZip = [System.IO.Compression.ZipFile]::Open((Join-Path (Get-Location) $OutputFile), [System.IO.Compression.ZipArchiveMode]::Create)
+Get-ChildItem $tempDir -Recurse -File | ForEach-Object {
+    $relPath = $_.FullName.Substring($tempDir.Length).TrimStart('\', '/').Replace('\', '/')
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($outZip, $_.FullName, $relPath, [System.IO.Compression.CompressionLevel]::Optimal)
+}
+$outZip.Dispose()
 Remove-Item $tempDir -Recurse -Force
 Write-Host "Success! Cleaned file created: $OutputFile" -ForegroundColor Green
